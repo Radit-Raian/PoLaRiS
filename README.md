@@ -1,12 +1,12 @@
 # PoLaRiS: Point-spread Light Reconstructions for Stars
 
-PoLaRiS (Point-spread Light Reconstruction for Stars) is an automated PSF modeling pipeline for multi-band imaging data from the Kilo-Degree Survey (KiDS) and the DESI Legacy Imaging Surveys.
+PoLaRiS (Point-spread Light Reconstruction for Stars) is an automated pipeline for point spread function (PSF) modeling and reconstruction from multi-band astronomical imaging data. It is currently optimized for the Kilo-Degree Survey and the DESI Legacy Imaging Surveys.
 
 ## Table of Contents
 
 1. [Getting Started](#step-0-getting-started)
 2. [Configuration](#step-1-configuration)
-3. [Data Preprocessing](#step-2-data-prerocessing)
+3. [Data Preprocessing](#step-2-data-preprocessing)
 4. [Background Substraction](#step-3-background-substraction)
 5. [GAIA Validation](#step-4-gaia-validation)
 6. [Star Selection](#step-5-star-selection)
@@ -18,6 +18,49 @@ PoLaRiS (Point-spread Light Reconstruction for Stars) is an automated PSF modeli
 12. [Acknowledgements](#acknowledgements)
 
 ---
+
+## Step 0: Getting Started
+
+This step sets up all required dependencies for PSF modeling, including both Python libraries and SExtractor. 
+
+### 0.1 Clone the repository
+
+```bash
+git clone https://github.com/Radit-Raian/PoLaRiS.git
+cd PoLaRiS
+pip install -r requirements.txt
+```
+### 0.2 Building SExtractor
+
+```bash
+git clone https://github.com/astromatic/sextractor
+cd sextractor
+sh autogen.sh
+./configure
+make -j
+sudo make install
+sex
+```
+
+## Step 1: Configuration
+
+## Step 2: Data Preprocessing
+
+## Step 3: Background Substraction
+
+## Step 4: GAIA Validation
+
+## Step 5: Star selection
+
+## Step 6: Cutout Generate
+
+## Step 7: Masking
+
+## Step 8: Stacking
+
+## Step 9: Radial Profile
+
+
 
 
 ## References
