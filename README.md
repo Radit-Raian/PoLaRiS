@@ -1,6 +1,6 @@
-# PolaRiS: Point-spread Function Reconstruction of Stellar Sources
+# PoLaRiS: Point-spread Function Reconstruction of Stellar Sources
 
-PolaRiS (Point-spread Fuction Reconstruction of Stellar Sources) is an automated pipeline for point spread function (PSF) modeling and reconstruction from multi-band astronomical imaging data. It is currently optimized for the Kilo-Degree Survey and the DESI Legacy Imaging Surveys.
+PoLaRiS (Point-spread Fuction Reconstruction of Stellar Sources) is an automated pipeline for point spread function (PSF) modeling and reconstruction from multi-band astronomical imaging data. It is currently optimized for the Kilo-Degree Survey and the DESI Legacy Imaging Surveys.
 
 ## Table of Contents
 
