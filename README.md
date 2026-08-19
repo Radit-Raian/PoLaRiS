@@ -364,14 +364,7 @@ The authors acknowledge the developers and maintainers of the open-source astron
 - KiDS Survey: https://kids.strw.leidenuniv.nl/
 - DESI Legacy Surveys: https://www.legacysurvey.org/
 
-## License
-
-PoLaRiS is distributed under the license specified in `LICENSE`. Please consult that file for the complete licensing terms.
-
-## Citation
-
-If you use PoLaRiS in scientific work, please cite the associated JOSS article once it is published. A citation entry will be added here following publication.
-
+Last Updated: 19 August, 2026
 ---
 
 *Pipeline documentation for PSF Modeling.*
