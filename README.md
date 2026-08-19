@@ -332,16 +332,6 @@ Tests are provided in `tests/` and can be run with:
 pytest
 ```
 
-JOSS reviewers expect an automated suite they can run in a few seconds without SExtractor, Gaia network access, or full survey tiles — so the suite is built around small, synthetic, in-memory inputs rather than real KiDS/DESI data. Recommended coverage:
-
-- **Pure-function unit tests** for `helpers.py` — `make_radius_map()` against a known analytic grid, `annulus_median()` and `peak_offset()` on a synthetic array with a known peak and flux level, `get_patch()` against fixed flux-radius/magnitude values and patch boundaries, `is_valid_cutout()` on arrays with a controlled fraction of NaN/zero pixels.
-- **Config tests** confirming `config.py` loads, required keys exist, and patch/tile definitions are internally consistent (e.g. every `PATCHES` entry has a matching `PATCH_SIZES` entry).
-- **Small-array integration tests** for `cutouts.py` and `masking.py` — build a tiny synthetic FITS array (e.g. 100×100 px) with a fake star and a fake segmentation map in a `pytest` fixture, run `generate_cutout()` and the masking functions on it, and assert the expected files, shapes, and mask values rather than comparing to real survey output.
-- **Stacking/profile tests** on a handful of synthetic, pre-normalized cutouts with a known injected profile, checking that `stacking.py` and `radial_profile.py` reproduce it within tolerance — this catches regressions in normalization, rejection, and stitching logic without needing real stellar images.
-- **Regression tests** using small, checked-in reference arrays (not full FITS tiles) for outputs that are expensive to eyeball on every run, such as a stitched radial profile.
-
-Stages that call out to SExtractor or the Gaia archive (`run_sextractor.py`, `gaia_validation.py`) are harder to unit test directly; consider either mocking their I/O boundaries (feed a pre-written `.cat` file / a canned Gaia response) or marking those tests to be skipped when SExtractor or network access isn't available in CI, so the rest of the suite still runs cleanly.
-
 For a full scientific run, users should additionally inspect the diagnostic outputs generated at each stage — source detections, segmentation maps, Gaia cross-matches, stellar-selection plots, cutouts, contamination masks, stacked PSFs, and radial profiles — since these visual checks aren't something an automated test can fully substitute for.
 
 ## Current Scope and Limitations
