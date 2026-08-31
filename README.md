@@ -1,131 +1,48 @@
 # PoLaRiS: Point-spread Function Reconstruction of Stellar Sources
 
-PoLaRiS (Point-spread Function Reconstruction of Stellar Sources) is a modular Python pipeline for constructing extended point-spread function (PSF) profiles from stellar sources in astronomical imaging data. It automates the sequence from source detection through Gaia-based stellar validation, multi-scale cutout generation, contamination masking, PSF stacking, and construction of a continuous radial PSF profile.
-
-The pipeline is currently developed and tested for wide-field optical imaging, with particular application to data from the **Kilo-Degree Survey (KiDS)** and the **DESI Legacy Imaging Surveys**. Its primary goal is to provide a reproducible workflow for reconstructing PSF profiles over a substantially larger radial range than can generally be obtained from a single stellar cutout.
+PoLaRiS is an automated pipeline for PSF modeling and reconstruction from
+multi-band astronomical imaging data, currently optimized for the
+Kilo-Degree Survey (KiDS) and the DESI Legacy Imaging Surveys. It takes raw
+survey tiles all the way through source detection, Gaia validation, star
+selection, cutout extraction, masking, stacking, and radial-profile
+construction, producing one continuous, stitched PSF profile per tile set.
 
 ## Table of Contents
 
-- [Scientific Motivation](#scientific-motivation)
-- [Repository Structure](#repository-structure)
-- [Installation](#installation)
-- [Dependencies](#dependencies)
-- [Configuration](#configuration)
-- [Pipeline](#pipeline)
-  1. [FITS Inspection and Preprocessing](#1-fits-inspection-and-preprocessing)
-  2. [SExtractor Source Detection](#2-sextractor-source-detection)
-  3. [Background Subtraction](#3-background-subtraction)
-  4. [Point-source Identification](#4-point-source-identification)
-  5. [Gaia Validation](#5-gaia-validation)
-  6. [Stellar Selection and Patch Definition](#6-stellar-selection-and-patch-definition)
-  7. [Cutout Generation](#7-cutout-generation)
-  8. [Contamination Masking](#8-contamination-masking)
-  9. [PSF Stacking](#9-psf-stacking)
-  10. [Radial Profile Construction](#10-radial-profile-construction)
-- [Helper Functions](#helper-functions)
-- [Pipeline Execution](#pipeline-execution)
-- [Example Notebooks](#example-notebooks)
-- [Output Products](#output-products)
-- [Reproducibility and Configuration](#reproducibility-and-configuration)
-- [Testing](#testing)
-- [Current Scope and Limitations](#current-scope-and-limitations)
-- [Reference](#reference)
-- [Acknowledgements](#acknowledgements)
-- [License](#license)
-- [Citation](#citation)
+1. [Step 0: Getting Started](#step-0-getting-started)
+2. [Step 1: Configuration](#step-1-configuration)
+3. [Step 2: Data Preprocessing](#step-2-data-preprocessing)
+4. [Step 3: SExtractor Setup and Run](#step-3-sextractor-setup-and-run)
+5. [Step 4: Background Subtraction](#step-4-background-subtraction)
+6. [Step 5: Point Source Identification](#step-5-point-source-identification)
+7. [Step 6: Gaia Validation](#step-6-gaia-validation)
+8. [Step 7: Star Selection](#step-7-star-selection)
+9. [Step 8: Cutout Generation](#step-8-cutout-generation)
+10. [Step 9: Masking](#step-9-masking)
+11. [Step 10: Stacking](#step-10-stacking)
+12. [Step 11: Radial Profile Construction](#step-11-radial-profile-construction)
+13. [Complete File Reference](#complete-file-reference)
+14. [Acknowledgements](#acknowledgements)
 
-## Scientific Motivation
+---
 
-The point-spread function describes the response of an imaging system to an unresolved source. Accurate characterization of the PSF matters for a number of astronomical applications, including the analysis of low-surface-brightness structures and extended diffuse emission.
+## Step 0: Getting Started
 
-A PSF measured only from the central region of a stellar image may not adequately describe extended wings at large radii. Constructing an extended PSF therefore requires both suitable stellar sources and measurements over multiple spatial scales. PoLaRiS addresses this by combining stellar sources with different cutout sizes into a single multi-scale PSF reconstruction workflow: detecting sources, identifying and Gaia-validating candidate stars, grouping them by measured properties, extracting cutouts at multiple spatial scales, removing neighbor contamination with segmentation maps, normalizing and stacking the resulting images, and stitching the resulting radial profiles into one continuous curve.
+**Purpose:** Install every dependency the pipeline needs — the Python
+package itself and the SExtractor binary it shells out to.
 
-## Repository Structure
-
-PoLaRiS is organized as an installable Python package rather than a sequence of numbered scripts, so each stage is importable, testable, and documented independently:
-
-```
-polaris/
-├── polaris/
-│   ├── __init__.py
-│   ├── config.py
-│   ├── helpers.py
-│   ├── preprocessing.py
-│   ├── run_sextractor.py
-│   ├── background.py
-│   ├── point_sources.py
-│   ├── gaia_validation.py
-│   ├── star_selection.py
-│   ├── cutouts.py
-│   ├── masking.py
-│   ├── stacking.py
-│   └── radial_profile.py
-├── run_pipeline.py
-├── pyproject.toml
-├── README.md
-├── LICENSE
-├── tests/
-└── notebooks/
-```
-
-| Module | Description |
-|---|---|
-| `config.py` | Central configuration of paths, tiles, patch definitions, cutout sizes, normalization parameters, rejection criteria, plotting parameters, and profile-stitching boundaries |
-| `helpers.py` | Shared utility functions used throughout the pipeline |
-| `preprocessing.py` | FITS-image inspection and downsampling |
-| `run_sextractor.py` | SExtractor configuration, source detection, and segmentation-map generation |
-| `background.py` | Background subtraction and visualization |
-| `point_sources.py` | Point-source identification and adaptive `CLASS_STAR` selection |
-| `gaia_validation.py` | Gaia querying and cross-matching |
-| `star_selection.py` | Stellar selection and definition of PSF patches |
-| `cutouts.py` | Stellar cutout extraction and validation (exposes `generate_cutout()`) |
-| `masking.py` | Segmentation-based contamination masking (imports `cutouts.generate_cutout()`) |
-| `stacking.py` | Cutout normalization, quality rejection, stacking, and PSF FITS output |
-| `radial_profile.py` | Radial-profile construction and multi-patch profile stitching |
-| `run_pipeline.py` | Pipeline orchestration and execution entry point |
-
-`cutouts.py` and `masking.py` are kept as separate modules with no duplicated I/O: `cutouts.py` owns "given a star, extract and save a cutout," while `masking.py` owns "given a saved cutout, build masks," calling into `cutouts.py` for the extraction step rather than reimplementing the `Cutout2D` call.
-
-## Installation
-
-### Clone the repository
+### 0.1 Clone the repository
 
 ```bash
 git clone https://github.com/Radit-Raian/PoLaRiS.git
 cd PoLaRiS
+pip install -r requirements.txt
 ```
 
-### Install the package
+### 0.2 Build SExtractor
 
-```bash
-pip install .
-```
-
-For development:
-
-```bash
-pip install -e .
-```
-
-Project dependencies are specified in `pyproject.toml`.
-
-## Dependencies
-
-PoLaRiS uses the scientific Python ecosystem for astronomical image processing and catalog analysis, including:
-
-- NumPy
-- SciPy
-- Pandas
-- Matplotlib
-- Astropy
-- Photutils
-- Astroquery
-
-Exact dependency versions should be obtained from `pyproject.toml`.
-
-### SExtractor
-
-PoLaRiS also requires **SExtractor** for source detection and segmentation-map generation. A source installation may follow:
+SExtractor is a compiled C binary, not a Python package, so it is built
+and installed separately:
 
 ```bash
 git clone https://github.com/astromatic/sextractor
@@ -137,234 +54,452 @@ sudo make install
 sex
 ```
 
-The installation procedure may vary depending on the operating system and available system packages.
+If it installs somewhere other than `/usr/local/bin/sex`, point
+`POLARIS_SEX_BIN` at it in Step 1 rather than editing code.
 
-## Configuration
+---
 
-Pipeline-wide configuration is centralized in `polaris/config.py`, controlling:
+## Step 1: Configuration
 
-- Input and output paths
-- `TILE_NAMES`
-- `PATCHES` and `PATCH_SIZES`
-- `NORM_ANNULUS`
-- `MAX_MASKED_FRAC`
-- `CENTRE_TOL`
-- `COLOR_MAP`
-- `YSHIFT`
-- `CORE_MAX`, `INT_MAX`, `O1_MAX`
+**File:** `polaris/config.py`
+**Purpose:** Define every path and per-patch parameter used by every other
+module, in one place, so a single edit is picked up pipeline-wide.
 
-Before processing a new dataset, users should review and adjust these parameters — particularly pixel scale, patch boundaries, cutout sizes, normalization annuli, masking thresholds, centering tolerances, and radial-profile stitching boundaries — since they may depend on the survey, detector sampling, and image characteristics.
+### Directory layout
 
-## Pipeline
+Paths are auto-detected relative to `config.py` (`PROJECT_ROOT` is one
+level up from the file), so cloning the repo anywhere and dropping data
+into `input/` works with zero path edits:
 
-### 1. FITS Inspection and Preprocessing
-
-Implemented in `preprocessing.py`. This stage:
-
-- Loads the input FITS image and inspects the FITS header
-- Visualizes the image and downsamples it for rapid inspection
-- Sets the pixel scale from the survey
-
-Downsampling is used primarily for visualization and quality inspection of large survey tiles, where displaying a full-resolution image may require substantial memory.
-
-### 2. SExtractor Source Detection
-
-Implemented in `run_sextractor.py`. This stage:
-
-- Defines input/output directories and references the necessary configuration files (`.nnw`, `.psf`, `.param`, convolution filter, etc.)
-- Writes a per-tile SExtractor configuration file and loops through all tiles
-- Runs SExtractor to detect primary sources and produce source catalogs and segmentation maps
-- Visualizes the resulting downsampled segmentation map for validation (kept downsampled to avoid memory issues, since KiDS FITS files are large)
-
-The segmentation maps are later used to identify and remove contamination from neighboring sources.
-
-### 3. Background Subtraction
-
-Implemented in `background.py`. For each tile, the pipeline loads the raw image, the SExtractor background map, and the background RMS map, and computes the background-subtracted image as `I_sub = I_raw − I_background` using Photutils. The stage also provides visualization of the resulting image for inspection.
-
-### 4. Point-source Identification
-
-Implemented in `point_sources.py`. This stage:
-
-- Parses the SExtractor `.cat` header lines to reconstruct column names and loads the catalog into a DataFrame
-- Filters for point sources using an initial criterion of `CLASS_STAR ≥ 0.84`, with support for an adaptive `CLASS_STAR` threshold based on the distribution of detected sources
-- Overlays candidate sources on the imaging data for visual validation
-- Distributes selected stars into four groups by position on the magnitude-vs-flux-radius plot: Core, Intermediate, Outer 1, and Outer 2
-- Clips selected stars to acceptable flux radius and magnitude ranges, and reports counts per patch
-
-### 5. Gaia Validation
-
-Implemented in `gaia_validation.py`. This stage:
-
-- Determines the relevant sky footprint and queries Gaia sources within it using `astroquery`
-- Cross-matches SExtractor detections with Gaia sources and calculates source separations
-- Produces a combined catalog with columns: `NUMBER, MAG_AUTO, MAGERR_AUTO, X_IMAGE, Y_IMAGE, FLAGS, ELLIPTICITY, CLASS_STAR, FLUX_RADIUS, RA, Dec, MAG_CAL, GAIA_RA, GAIA_Dec, GAIA_Gmag, Sep_arcsec, TILE, SOURCE, REGION`
-
-The Gaia G-band magnitude is used in the subsequent stellar-selection stage.
-
-### 6. Stellar Selection and Patch Definition
-
-Implemented in `star_selection.py`. This stage:
-
-- Applies selection criteria of `CLASS_STAR > 0.8` and `classprob_dsc_combmod_star > 0.98` to identify high-confidence stars
-- Overlays confirmed stars on the imaging data for visual validation
-- Generates the magnitude-vs-flux-radius plot (flux radius from the SExtractor catalog, Gaia G magnitude as stellar magnitude)
-- Divides selected stars into spatial/morphological patches — core, intermediate, and optionally two outer regions — each associated with a particular cutout scale, controlled through `config.py`
-
-This grouping allows the pipeline to use different stellar cutout sizes for different portions of the final radial PSF profile.
-
-### 7. Cutout Generation
-
-Implemented in `cutouts.py`. This stage:
-
-- Redefines the four patch regions, each tagged with a cutout size (200–2000 px) and folder name, and creates one `cutouts/` output folder per patch
-- `get_patch()`: given a star's flux radius and magnitude, returns which patch (and cutout size) it belongs to
-- `is_valid_cutout()`: rejects cutouts where more than 20% of pixels are NaN/zero
-- `generate_cutout()`: for each tile, loads the tile image and its matched Gaia catalog; for each star, determines its patch, checks it isn't too close to the image edge, extracts a `Cutout2D`, validates it, and saves it as a FITS file named by tile/star ID/size; tracks and prints save/skip counts per tile and totals
-- For each patch folder, randomly samples 5 saved cutouts and displays them in a row with percentile scaling for quality control
-
-### 8. Contamination Masking
-
-Implemented in `masking.py`, which imports `cutouts.generate_cutout()` rather than re-extracting cutouts. Neighboring astronomical sources can contaminate the extended wings of a stellar PSF; PoLaRiS uses SExtractor segmentation maps to identify these. For each stellar cutout, the stage:
-
-- Loads the cutout and the matching segmap cutout
-- Identifies the target object ID at the cutout's center pixel; skips (and deletes files) if the center is heavily displaced
-- Builds a primary mask (star+background pixels = 0, rest = 1), flags segmented pixels belonging to other objects, and dilates that mask by 4 iterations using a full 8-connectivity structuring element to grow contamination flags outward
-- Builds a final mask as the inverse of the primary mask, and computes the multiplied image (cutout × final mask) to zero out contaminating neighbors
-- Saves all five products per star: cutout, segmap cutout, primary mask, final mask, and multiplied image, organized into `cutouts/`, `segmaps/`, `primary_masking/`, `final_masking/`, and `multiplied/`
-- Preview: for 5 random stars per patch, shows a 5-panel figure (Cutout, Segmap, Primary Mask, Final Mask, Masked Image)
-
-### 9. PSF Stacking
-
-Implemented in `stacking.py`. This stage:
-
-- Loads masked stellar cutouts via `load_masked_cutout()`, representing invalid/masked pixels as NaN
-- Applies quality-rejection criteria — maximum masked fraction, expected cutout dimensions, and centering tolerance (via `peak_offset()`) — configured per patch in `config.py`
-- Normalizes each accepted cutout using the median flux within a configured annulus (`annulus_median()`) to establish a common flux scale before stacking
-- Combines normalized cutouts to produce a median PSF stack, a mean PSF stack, and a per-pixel uncertainty map
-- Reports acceptance/rejection statistics per patch and visualizes the stacks using log stretching and the normalization annulus (`plot_stack()`)
-
-The median stack provides a robust representative PSF while reducing the influence of individual outliers.
-
-### 10. Radial Profile Construction
-
-Implemented in `radial_profile.py`. For each patch, the pipeline:
-
-- Loads the median-stacked PSF FITS file
-- Computes a radial profile using `photutils.RadialProfile` — a linear progression from 1–10 px and log-spaced radii from 10–1500 px — normalized to peak = 1
-- Applies a configured vertical shift (`YSHIFT`) per patch to visually align overlapping profiles, and plots all patches on a hybrid plot
-- Stitches the individual patch profiles into one continuous curve using configured boundaries — `CORE_MAX=40`, `INT_MAX=90`, `O1_MAX=245` — so that each patch contributes only over its designated radial interval
-
-The radial sampling combines linear and logarithmic intervals, sampling the central PSF more densely while extending the profile to larger radii. The resulting profile is a single continuous representation of the PSF over the combined radial range covered by the individual stacks. The exact boundaries are configuration parameters and should be reviewed when applying PoLaRiS to a new dataset.
-
-## Helper Functions
-
-Common functionality shared across pipeline stages is implemented in `helpers.py`:
-
-- **`make_radius_map()`** — builds a radial-distance-from-center grid
-- **`annulus_median()`** — median flux within an annulus, used for cutout normalization
-- **`peak_offset()`** — distance of the brightest pixel from the geometric center, used as a centering-quality criterion
-- **`load_masked_cutout()`** — loads a cutout and applies its multiplied mask, converting masked/zero pixels to NaN
-- **`get_patch()`** — determines the patch associated with a source based on the configured selection regions
-- **`is_valid_cutout()`** — checks whether a stellar cutout satisfies the configured validity criteria
-- **`plot_stack()`** — log-stretches and displays median/mean stacks side by side with colorbars and drawn normalization-annulus rings
-
-## Pipeline Execution
-
-The complete workflow is orchestrated by `run_pipeline.py`, which runs the ten stages above in order:
-
-```bash
-python run_pipeline.py
+```
+<project root>/
+├── input/
+│   ├── FITS_images/   survey tiles, e.g. KIDS_9.3_-31.2.fits
+│   └── sextractor/    gauss_*.conv, default.nnw/.psf/.param
+├── output/
+│   ├── se_in_out/         SExtractor catalogs, segmaps, backgrounds
+│   ├── patches/<name>/    cutouts / masks / stacked, per patch
+│   ├── gaia_cache/<tile>/ cached Gaia DR3 query results (auto-fetched)
+│   └── pipeline_plots/<step>/   saved figures
+└── polaris/           this package
 ```
 
-Before running the pipeline, review `polaris/config.py` and set the appropriate input/output paths, tile names, patch definitions, cutout sizes, normalization annuli, masking criteria, centering criteria, and profile-stitching boundaries.
+Run the scaffolder once to create the empty `input/`/`output/` skeleton:
 
-## Example Notebooks
+```bash
+python -m polaris.config
+```
 
-Example Jupyter notebooks are provided in `notebooks/` and walk through the pipeline interactively, stage by stage, using a small example dataset rather than a full survey tile. They are intended for exploration and for reviewers who want to inspect intermediate outputs (segmentation maps, cutout previews, mask panels, stacks, radial profiles) without running the full `run_pipeline.py` script end to end.
+This also asks whether pipeline plots should display interactively or
+save to `output/pipeline_plots/<step>/`:
 
-| Notebook | Covers |
+```
+Show intermediate plots interactively? [y/N]:
+```
+
+Answering `N` (or running non-interactively) saves every step's figures
+to disk instead of popping up a window — useful on a remote server or
+when processing many tiles unattended.
+
+---
+
+## Step 2: Data Preprocessing
+
+**File:** `polaris/preprocessing.py`
+**Purpose:** Visualize every raw FITS tile before any downstream
+processing runs, so data-quality issues are caught early.
+
+`inspect_raw_fits()` downsamples each tile (`downsample=4` by default)
+and displays it percentile-scaled (1st–99th) on a dark background, in a
+grid with one panel per tile, titled from the FITS header's `OBJECT`
+keyword.
+
+```bash
+python -m polaris.preprocessing
+```
+
+**Output:** `pipeline_plots/preprocessing/raw_fits_preview.png`
+
+---
+
+## Step 3: SExtractor Setup and Run
+
+**File:** `polaris/run_sextractor.py`
+**Purpose:** Write a per-tile SExtractor configuration, run source
+detection, and preview the resulting segmentation maps.
+
+### Per-tile parameter resolution
+
+Three values are read straight from each tile's FITS header rather than
+hardcoded, since they vary tile to tile:
+
+| Header keyword | SExtractor parameter | Fallback |
+|---|---|---|
+| `PSF_RAD` | `SEEING_FWHM` (arcsec) | `0.7` |
+| `STATMAX × 0.95` | `SATUR_LEVEL` (95% of brightest pixel) | `3.5e-8 × 0.95` |
+| `CD1_1` → `CDELT1` → `config.DEFAULT_PIXSCALE` | `PIXEL_SCALE` (arcsec/px) | `0.2` |
+
+SExtractor is then run via `subprocess`, and its ASCII catalog is parsed
+into a DataFrame to report how many detections passed `CLASS_STAR ≥ 0.84`.
+
+```bash
+python -m polaris.run_sextractor
+```
+
+### Output files
+
+| File | Contents |
 |---|---|
-| `01_preprocessing_and_detection.ipynb` | FITS inspection, downsampling, SExtractor source detection |
-| `02_background_and_point_sources.ipynb` | Background subtraction, point-source identification |
-| `03_gaia_validation_and_selection.ipynb` | Gaia cross-matching, stellar selection, patch definition |
-| `04_cutouts_and_masking.ipynb` | Cutout generation, contamination masking |
-| `05_stacking_and_radial_profile.ipynb` | PSF stacking, radial profile construction and stitching |
+| `se_in_out/outparams_<tile>.cat` | `NUMBER, MAG_AUTO, MAGERR_AUTO, X_IMAGE, Y_IMAGE, FLAGS, ELLIPTICITY, CLASS_STAR, FLUX_RADIUS` |
+| `se_in_out/segmap_<tile>.fits` | Segmentation map |
+| `se_in_out/bkg_<tile>.fits` | Background map |
+| `se_in_out/bkg_rms_<tile>.fits` | Background RMS map |
+| `pipeline_plots/run_sextractor/segmaps_preview.png` | Grid preview of every tile's segmentation map |
 
-Run them from the repository root after installing the package (`pip install -e .`) so the `polaris` modules import correctly:
+---
 
-```bash
-jupyter lab notebooks/
-```
+## Step 4: Background Subtraction
 
-*(Adjust the notebook filenames/table above once the actual notebooks are added — this is a placeholder outline you can edit to match what you build.)*
+**File:** `polaris/background.py`
+**Purpose:** Visualize the raw image, SExtractor's background model,
+its RMS, and the background-subtracted result, side by side, using the
+checkimages Step 3 produced.
 
-## Output Products
-
-Depending on the configured workflow, PoLaRiS produces:
-
-- SExtractor catalogs and segmentation maps
-- Background maps and background-subtracted images
-- Gaia-matched and selected stellar-source catalogs
-- Stellar FITS cutouts and segmentation-map cutouts
-- Primary masks, final contamination masks, and masked/multiplied cutouts
-- Median and mean PSF stacks, and per-pixel uncertainty maps
-- Patch-specific radial profiles and the continuous stitched radial PSF profile
-
-The exact directory organization and filenames are controlled by the pipeline configuration.
-
-## Reproducibility and Configuration
-
-PoLaRiS centralizes processing parameters in `config.py` rather than distributing them across individual modules. For reproducible processing, users should preserve, alongside their results:
-
-- The PoLaRiS version or commit
-- The input dataset and survey release
-- The relevant configuration parameters
-- The Python environment and dependency versions
-
-When applying PoLaRiS to data from a different survey, the configuration should be reviewed rather than assuming that parameters used for KiDS or the DESI Legacy Imaging Surveys are directly transferable.
-
-## Testing
-
-Tests are provided in `tests/` and can be run with:
+`plot_background_subtraction()` builds one row per tile with four
+columns — Original, Background, Background RMS, Background Subtracted
+(`raw − background`) — each downsampled and percentile-scaled.
 
 ```bash
-pytest
+python -m polaris.background
 ```
 
-For a full scientific run, users should additionally inspect the diagnostic outputs generated at each stage — source detections, segmentation maps, Gaia cross-matches, stellar-selection plots, cutouts, contamination masks, stacked PSFs, and radial profiles — since these visual checks aren't something an automated test can fully substitute for.
+**Output:** `pipeline_plots/background/background_subtraction.png`
 
-## Current Scope and Limitations
+---
 
-- The current configuration is optimized for KiDS and DESI Legacy Imaging Survey imaging
-- SExtractor is required for the current source-detection and segmentation workflow
-- Gaia cross-matching is currently part of the stellar-validation workflow
-- Patch definitions, cutout sizes, and profile-stitching boundaries are configuration-dependent
+## Step 5: Point Source Identification
 
-Applying the pipeline to another survey may require changes to image preprocessing, source-selection criteria, photometric quantities, pixel scale, patch definitions, and other configuration parameters. The software should not be assumed to be survey-independent without appropriate validation.
+**File:** `polaris/point_sources.py`
+**Purpose:** Select point-like detections and visualize the
+FLUX_RADIUS–MAG_AUTO stellar locus.
 
-## Reference
+`_read_sextractor_catalog()` parses a SExtractor ASCII_HEAD catalog's `#`
+header lines to reconstruct column names, so every downstream step reads
+the same columns consistently.
+
+`plot_point_sources()` overlays detections with `CLASS_STAR ≥ 0.84` (a
+fixed threshold) on each tile's downsampled image.
+
+`flux_radius_vs_mag()` instead derives a **per-tile adaptive** threshold:
+it histograms `CLASS_STAR` (100 bins) and finds the valley between `lo=0.3`
+and `hi=0.9` — the natural galaxy/star separation point — clipped to
+`[0.5, 0.9]`. It then concatenates every tile's catalog and point-source
+table and plots FLUX_RADIUS vs. MAG_AUTO for both.
+
+```bash
+python -m polaris.point_sources
+```
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `pipeline_plots/point_sources/point_sources.png` | Fixed-threshold (0.84) overlay per tile |
+| `pipeline_plots/point_sources/flux_radius_vs_mag.png` | All sources vs. adaptively-selected point sources |
+
+`flux_radius_vs_mag()` returns `(catalog_all, stars_all)` for reuse by
+later steps.
+
+---
+
+## Step 6: Gaia Validation
+
+**File:** `polaris/gaia_validation.py`
+**Purpose:** Cross-match SExtractor detections against Gaia DR3 and
+assign each surviving star its authoritative patch label.
+
+### Pipeline, per tile
+
+1. Select PSF-quality sources: `CLASS_STAR ≥ 0.84`, `FLAGS ≤ 7`.
+2. Split off **Outer_2** (the faintest region, by `config.MAG_CUTS`) as
+   SExtractor-only — these stars are too faint and numerous to rely on
+   Gaia for.
+3. Query Gaia DR3 within the tile's sky footprint (`ra`, `dec` bounds
+   from the four corner WCS coordinates), restricted to `G ≥ 11` and
+   either a high stellar-classification probability or `G < 14`. Results
+   are cached to `output/gaia_cache/<tile>/gaia_sources.csv` so repeat
+   runs don't re-query.
+4. Cross-match via a kd-tree nearest-neighbor search on unit-sphere
+   Cartesian coordinates. The match radius is not a fixed arcsec cut —
+   it's found per tile from the separation histogram: the first bin
+   where the count drops below `max(3, 5% of the peak bin)`.
+5. Combine the Gaia-matched and SE-only (Outer_2) sources, drop
+   duplicate `NUMBER`s (keeping the smallest separation), then reject
+   sources whose brightest pixel isn't within 3 px of the cutout center
+   — saturated sources (`FLAGS & 4`) are exempted, since bleed can
+   genuinely shift their peak off-center.
+6. Label every surviving star's `REGION` via magnitude alone
+   (`config.MAG_CUTS`, using Gaia G when available, calibrated
+   `MAG_AUTO` otherwise) — **this is the pipeline's authoritative
+   per-star patch assignment.**
+
+```bash
+python -m polaris.gaia_validation
+```
+
+### `master.csv` columns
+
+`NUMBER, MAG_AUTO, MAGERR_AUTO, X_IMAGE, Y_IMAGE, FLAGS, ELLIPTICITY,
+CLASS_STAR, FLUX_RADIUS, RA, Dec, MAG_CAL, GAIA_RA, GAIA_Dec, GAIA_Gmag,
+Sep_arcsec, TILE, SOURCE, REGION`
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `output/gaia_validation/master.csv` | Combined catalog across all tiles |
+| `output/gaia_validation/<tile>.csv` | Per-tile matched catalog |
+| `output/gaia_cache/<tile>/gaia_sources.csv` | Raw cached Gaia query result |
+| `pipeline_plots/gaia_validation/source_overlay.png` | Region-coded source overlay per tile |
+
+---
+
+## Step 7: Star Selection
+
+**File:** `polaris/star_selection.py`
+**Purpose:** Visually confirm that the flux-radius-based patch
+boundaries (`config.PATCHES`) actually capture the intended stellar
+locus in `master.csv`.
+
+`plot_star_selection()` scatters `FLUX_RADIUS` vs. `MAG_AUTO` for every
+matched star, then overlays each patch's rectangle from `config.PATCHES`
+with its star count in the legend — the split Intermediate range is
+drawn as one labeled box plus one unlabeled box so the legend isn't
+duplicated.
+
+```bash
+python -m polaris.star_selection
+```
+
+**Output:** `pipeline_plots/star_selection/star_selection.png`
+
+---
+
+## Step 8: Cutout Generation
+
+**File:** `polaris/cutouts.py`
+**Purpose:** Extract a fixed-size cutout around each selected star,
+sized by which patch it falls into.
+
+`extract_cutout()` is the single source of truth for turning
+`(tile image, x, y, size)` into a saved array, using `Cutout2D` with
+`mode='partial'` so stars near a tile edge still produce a
+correctly-shaped array (filled outside the tile). `masking.py` imports
+this same function directly, so the two steps' extraction logic can
+never drift apart.
+
+`generate_cutouts()` loops over every matched star, determines its
+patch via `helpers.get_patch()` against `config.PATCHES`, rejects stars
+too close to the tile edge (`edge_margin_frac=0.55` of the cutout size),
+extracts and validates the cutout (`is_valid_cutout()` rejects >20% NaN/
+zero pixels, `config.MAX_EMPTY_FRACTION`), and saves it as
+`<tile>_<star_number>_<size>.fits` under
+`output/patches/<folder>/cutouts/`.
+
+```bash
+python -m polaris.cutouts
+```
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `patches/<folder>/cutouts/<tile>_<number>_<size>.fits` | Per-star science cutout |
+| `pipeline_plots/cutouts/cutout_preview_<folder>.png` | 5 random cutouts per patch |
+
+---
+
+## Step 9: Masking
+
+**File:** `polaris/masking.py`
+**Purpose:** Build a contamination mask for every star and produce all
+five per-star products needed for stacking.
+
+This step wipes and regenerates its own cutouts from scratch (it does
+not reuse Step 8's output on disk) because the segmap cutout must be
+extracted with the exact same center and size as the science cutout,
+and centering can shift once the target-object check below is applied.
+
+For every star:
+
+1. Extract the science cutout and the matching segmap cutout (via
+   `cutouts.extract_cutout`).
+2. Identify the target object's segmentation ID at the cutout's center
+   pixel; skip the star if the center isn't on any detected object.
+3. Build a **primary mask**: star + background pixels = 0, everything
+   else = 1.
+4. Flag every segmented pixel belonging to a *different* object, then
+   grow that flag outward with binary dilation (`DILATION_ITERATIONS=4`,
+   full 8-connectivity) so faint wings of nearby contaminants are also
+   excluded, not just their detected core.
+5. Build the **final mask** as the inverse of the primary mask, and the
+   **multiplied** image as `cutout × final_mask`.
+
+```bash
+python -m polaris.masking
+```
+
+### Output files (per star, under `patches/<folder>/`)
+
+| Subfolder | Contents |
+|---|---|
+| `cutouts/` | Science cutout |
+| `segmaps/` | Matching segmentation-map cutout |
+| `primary_masking/` | Star+background=0, contaminants=1 |
+| `final_masking/` | Inverse of primary — 1=keep, 0=mask out |
+| `multiplied/` | `cutout × final_mask` |
+
+Plus `pipeline_plots/masking/mask_preview_<folder>_<star_id>.png` — a
+5-panel preview (Cutout, Segmap, Primary Mask, Final Mask, Masked Image)
+for 5 random stars per patch.
+
+---
+
+## Step 10: Stacking
+
+**File:** `polaris/stacking.py`
+**Purpose:** Reject bad cutouts, decorrelate non-circular PSF features,
+normalize, and stack every patch's surviving stars.
+
+### Rejection criteria, applied in sequence
+
+| Check | Threshold | Rejects |
+|---|---|---|
+| Shape | `!= expected_size` | Malformed cutouts |
+| Valid pixel fraction | `< MIN_VALID_FRACTION` (0.4) | Too heavily masked/edge-affected |
+| Masked fraction | `> config.MAX_MASKED_FRAC[patch]` | Same check, per-patch tolerance |
+| Peak offset | `> config.CENTRE_TOL[patch]` px | Miscentered stars |
+| Annulus normalization | non-finite or ≤ 0 | Bad flux normalization |
+
+| Patch | Norm. annulus (px) | Max masked fraction | Centre tolerance (px) |
+|---|---|---|---|
+| Core | 10 – 15 | 0.20 | 3 |
+| Intermediate | 100 – 140 | 0.30 | 999 (unconstrained) |
+| Outer_1 | 200 – 220 | 0.50 | 999 (unconstrained) |
+| Outer_2 | 400 – 410 | 0.80 | 999 (unconstrained) |
+
+Surviving cutouts are rotated by a **random continuous angle** in
+`[0, 360)` (bilinear interpolation, `cval=NaN`). A continuous angle is
+required — 90°-only rotation would leave pixel-grid-aligned features
+like diffraction spikes and chip seams uncorrelated across stars.
+
+Each rotated cutout is normalized by its annulus median flux, then
+stacked into a median stack, a mean stack, and a per-pixel uncertainty
+map (Garate et al.): `(P84 − P16) / 2 × 1.253 / √n_contributing`.
+
+```bash
+python -m polaris.stacking
+```
+
+A patch with zero accepted stars is skipped entirely — no FITS files
+are written for it, and it's logged as `[SKIP] <patch>: no valid PSFs`.
+
+### Output files
+
+| File | Contents |
+|---|---|
+| `patches/<patch>/stacked/median_psf_<patch>.fits` | Median stack |
+| `patches/<patch>/stacked/mean_psf_<patch>.fits` | Mean stack |
+| `patches/<patch>/stacked/sigma_psf_<patch>.fits` | Per-pixel uncertainty |
+| `pipeline_plots/stacking/stack_<patch>.png` | Log-stretched median/mean side by side, with normalization-annulus rings drawn |
+
+A summary table (Total / Accepted / rejection counts per category) is
+printed for every patch after the run.
+
+---
+
+## Step 11: Radial Profile Construction
+
+**File:** `polaris/radial_profile.py`
+**Purpose:** Compute each patch's radial profile from its median stack,
+then stitch them into one continuous curve — automatically.
+
+`available_patches()` checks which patches actually have a median stack
+on disk; a patch missing one (0 accepted stars in Step 10) is printed as
+`[SKIP]` and excluded, so the profile is built from whichever patches
+exist even if that's just one.
+
+`compute_patch_profiles()` radial-profiles every available patch over
+one shared radius grid (linear from 0–10 px, then log-spaced from 10 px
+to `config.RADIAL_PROFILE_MAX`), normalized to peak = 1.
+
+### Auto-stitching — no manual y-shift
+
+For each pair of adjacent patches (ordered by cutout size):
+
+1. A radius is **valid** for a patch if its profile is finite, positive,
+   and inside `config.STITCH_EDGE_MARGIN_FRAC` of its cutout — clear of
+   `Cutout2D` edge/corner artifacts. No SNR comparison is involved.
+2. The stitch radius comes from `config.STITCH_RADII` when the inner
+   patch has an entry there (manual); otherwise it's auto-detected as
+   the **start** of the two patches' overlapping valid-radius range —
+   the earliest point the outer patch can be trusted, so the inner
+   patch's better-resolved core is kept as long as possible.
+3. Both profiles are interpolated (log-log) at that exact radius, and
+   the outer patch is scaled so the two lines match there exactly. That
+   scale factor is the only "shift" applied — it's derived from the
+   data, not chosen by hand.
+4. If a boundary has fewer than `config.STITCH_MIN_OVERLAP_POINTS`
+   overlapping radii and no manual entry, it raises rather than
+   guessing — add a `config.STITCH_RADII` entry for that boundary.
+
+```bash
+python -m polaris.radial_profile
+```
+
+`print_stitch_report()` prints the derived scale, stitch radius, source
+("manual"/"auto-overlap"), overlap size, and a `clamped` flag per
+boundary, so the automatic choice can be sanity-checked before trusting
+it.
+
+**Output:** `pipeline_plots/radial_profile/radial_profile.png` — the
+continuous PSF profile (log-log), with each patch's contributing radius
+range shaded.
+
+---
+
+## Complete File Reference
+
+| Step | Module | Key outputs |
+|---|---|---|
+| 1 | `config.py` | `input/`, `output/` folder skeleton |
+| 2 | `preprocessing.py` | `raw_fits_preview.png` |
+| 3 | `run_sextractor.py` | `outparams_<tile>.cat`, `segmap_<tile>.fits`, `bkg_<tile>.fits`, `bkg_rms_<tile>.fits` |
+| 4 | `background.py` | `background_subtraction.png` |
+| 5 | `point_sources.py` | `point_sources.png`, `flux_radius_vs_mag.png` |
+| 6 | `gaia_validation.py` | `master.csv`, per-tile CSVs, `source_overlay.png` |
+| 7 | `star_selection.py` | `star_selection.png` |
+| 8 | `cutouts.py` | `patches/<folder>/cutouts/*.fits`, `cutout_preview_<folder>.png` |
+| 9 | `masking.py` | `patches/<folder>/{cutouts,segmaps,primary_masking,final_masking,multiplied}/*.fits` |
+| 10 | `stacking.py` | `patches/<patch>/stacked/{median,mean,sigma}_psf_<patch>.fits` |
+| 11 | `radial_profile.py` | `radial_profile.png` |
+
+---
+
+## Acknowledgements
+
+- SExtractor: Bertin, E. & Arnouts, S. (1996), *Astronomy and Astrophysics
+  Supplement Series*, 117, 393–404
+- KiDS Survey: <https://kids.strw.leidenuniv.nl/>
+- DESI Legacy Surveys: <https://www.legacysurvey.org/>
+
+### References
 
 | # | Title | Link |
 |---|---|---|
 | 1 | The Buildup of the Intracluster Light of A85 as Seen by Subaru's Hyper Suprime-Cam | IOP Science |
-| 2 | The Hyper Suprime-Cam Extended Point Spread Functions and Applications | MNRAS |
+| 2 | The Hyper Suprime-Cam extended point spread functions and applications | MNRAS |
 
-Additional methodological references should be cited in the associated JOSS paper where specific algorithms or scientific procedures are discussed.
-
-### Software and Data Resources
-
-PoLaRiS makes use of the following astronomical software and data resources: SExtractor for source detection and segmentation-map generation; Astropy for astronomical data structures, FITS handling, coordinates, and image operations; Photutils for image and photometric analysis, including radial-profile construction; Astroquery for querying astronomical archives; Gaia for stellar-source validation; and imaging from the Kilo-Degree Survey (KiDS) and the DESI Legacy Imaging Surveys.
-
-## Acknowledgements
-
-The authors acknowledge the developers and maintainers of the open-source astronomical software used by PoLaRiS, including SExtractor, Astropy, Photutils, and Astroquery, and the teams responsible for the Gaia, KiDS, and DESI Legacy Imaging Surveys data products used during development and testing.
-
-- SExtractor: Bertin, E. & Arnouts, S. (1996), *Astronomy and Astrophysics Supplement Series*, 117, 393–404
-- KiDS Survey: https://kids.strw.leidenuniv.nl/
-- DESI Legacy Surveys: https://www.legacysurvey.org/
-
-Last Updated: 19 August, 2026
 ---
 
-*Pipeline documentation for PSF Modeling.*
+*Pipeline documentation for PSF Modeling*
