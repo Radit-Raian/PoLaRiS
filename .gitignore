@@ -1,0 +1,6 @@
+input/FITS_images/
+*.fits
+*.fit
+output/
+__pycache__/
+.ipynb_checkpoints/

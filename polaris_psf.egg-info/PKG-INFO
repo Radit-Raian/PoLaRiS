@@ -1,0 +1,105 @@
+Metadata-Version: 2.4
+Name: polaris-psf
+Version: 0.1.0
+Summary: PoLaRiS: Point-spread Function Reconstruction of Stellar Sources
+Author: Radit Raian
+License: MIT
+Project-URL: Homepage, https://github.com/Radit-Raian/PoLaRiS
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: matplotlib
+Requires-Dist: scipy
+Requires-Dist: astropy
+Requires-Dist: astroquery
+Requires-Dist: photutils
+Dynamic: license-file
+
+# PoLaRiS: Point-spread Function Reconstruction of Stellar Sources
+
+PoLaRiS is an automated pipeline for point spread function (PSF) modeling
+and reconstruction from multi-band astronomical imaging data. It is
+currently optimized for the Kilo-Degree Survey and the DESI Legacy Imaging
+Surveys.
+
+## Installation
+
+```bash
+git clone https://github.com/Radit-Raian/PoLaRiS.git
+cd PoLaRiS
+pip install -e .
+```
+
+SExtractor must also be built and installed separately:
+
+```bash
+git clone https://github.com/astromatic/sextractor
+cd sextractor
+sh autogen.sh
+./configure
+make -j
+sudo make install
+sex   # confirm it's on PATH
+```
+
+## Configuration
+
+All paths, per-patch parameters (flux-radius / magnitude windows, cutout
+sizes, normalization annuli, masking thresholds) and plotting constants
+live in `polaris/config.py`. Edit that file — or set the
+`POLARIS_FITS_DIR`, `POLARIS_GAIA_DIR`, and `POLARIS_SEX_BIN` environment
+variables — before running the pipeline on a new dataset.
+
+## Usage
+
+See `examples/quickstart.ipynb` for a runnable walkthrough — including a self-contained demo
+of the stacking + rotation-randomization logic on synthetic data that needs no external
+dependencies or real survey tiles.
+
+Run the full pipeline:
+
+```bash
+python run_pipeline.py
+```
+
+Resume from a specific step (useful once earlier steps have already
+produced their outputs):
+
+```bash
+python run_pipeline.py --from stacking
+```
+
+Or run any step on its own:
+
+```bash
+python -m polaris.stacking
+python -m polaris.radial_profile
+```
+
+## Pipeline steps
+
+| Module | Step |
+|---|---|
+| `preprocessing.py` | Inspect raw FITS tiles |
+| `run_sextractor.py` | Configure and run SExtractor per tile |
+| `background.py` | Visualize background subtraction |
+| `point_sources.py` | Identify point sources, adaptive CLASS_STAR threshold |
+| `gaia_validation.py` | Cross-match against Gaia, build master catalog |
+| `star_selection.py` | Define and visualize Core/Intermediate/Outer_1/Outer_2 patches |
+| `cutouts.py` | Extract per-star cutouts |
+| `masking.py` | Mask contaminating neighboring objects |
+| `stacking.py` | Normalize, reject, randomly rotate, and stack |
+| `radial_profile.py` | Stitch per-patch profiles into one continuous PSF radial profile |
+
+## References
+
+1. The Buildup of the Intracluster Light of A85 as Seen by Subaru's Hyper Suprime-Cam — IOP Science
+2. The Hyper Suprime-Cam extended point spread functions and applications — MNRAS
+
+## Acknowledgements
+
+- SExtractor: Bertin, E. & Arnouts, S. (1996), Astronomy and Astrophysics Supplement Series, 117, 393–404
+- KiDS Survey: https://kids.strw.leidenuniv.nl/
+- DESI Legacy Surveys: https://www.legacysurvey.org/
